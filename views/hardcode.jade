@@ -1,0 +1,26 @@
+//
+   Created by jenia0jenia on 23.03.2015.
+
+extends layout
+block append content
+   .row
+      #chat.col-sm-3
+         p hello, #{user}!
+         h3 Chat here
+         ul.list-unstyled
+         form
+            input(disabled='false', class='form-control', autocomplete='off', autofocus='true', placeholder='Message...')
+      #editor.col-sm-9
+         form(method='post')
+         textarea(id="textarea", name="content", cols="80", rows="15")
+
+block append script
+   script(src='/vendor/bower_components/socket.io-client/socket.io.js', type='text/javascript')
+   script(src='/js/chat.js', type='text/javascript')
+   script(language='javascript', type='text/javascript', src='/js/edit_area/edit_area_full.js')
+   script(language='javascript', type='text/javascript').
+      editAreaLoader.init({
+      id : "textarea"		// textarea id
+      ,syntax: "css"            // syntax to be uses for highgliting
+      ,start_highlight: true        // to display with highlight mode on start-up
+      });

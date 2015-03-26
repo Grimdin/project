@@ -1,0 +1,29 @@
+//
+   Created by jenia0jenia on 22.03.2015.
+
+extends layout
+block append content
+   .row
+      p Пожалуйста, введите Ваш логин и пароль
+         small
+
+      form(class='form-horizontal login-form', name='login-form')
+
+         .form-group
+            label(for='input-login', class='col-sm-2 control-label') Username
+            .col-sm-10
+               input(type='username', class='form-control', id='input-username', placeholder='Login',
+               name='username')
+
+         .form-group
+            label(for='input-password', class='col-sm-2 control-label') Password
+            .col-sm-10
+               input(type='password', class='form-control', id='input-password', placeholder='Password',
+               name='password')
+
+         .form-group
+            .col-sm-offset-2.col-sm-10
+               button(type='submit', class='btn btn-primary', data-loading-text='Sending...') Send
+               span(class='help-block error')
+block append script
+   script(src='/js/login.js', type='text/javascript')

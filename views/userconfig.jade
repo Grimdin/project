@@ -1,0 +1,12 @@
+//
+   Created by jenia0jenia on 20.03.2015.
+
+extends layout
+block append content
+   .row
+      .col-sm-12
+         p hello, #{user}!
+         h1 your mode is #{mode}
+         - if (mode === 0)
+            small
+               p you can edit anything
