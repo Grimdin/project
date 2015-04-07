@@ -3,24 +3,35 @@
 
 extends layout
 block append content
+
    .row
-      #chat.col-sm-3
-         p hello, #{user}!
-         h3 Chat here
-         ul.list-unstyled
-         form
-            input(disabled='false', class='form-control', autocomplete='off', autofocus='true', placeholder='Message...')
+      .col-sm-3
+         #lang
+            h4 Select language
+            select.form-control
+               option html
+               option css
+         div(id="members", style="height: 150px;")
+            h4 Members
+            h4(id="list", style="height: 125px; overflow:hidden; overflow-y:auto; overflow-x:auto;")
+
+         #chat
+            h4 Chat here
+            form
+               input(disabled='false', class='form-control', autocomplete='off', autofocus='true', placeholder='Message...')
+            ul(class="list-unstyled", style="height:200px; overflow:hidden; overflow-y:auto;")
       #editor.col-sm-9
-         form(method='post')
+         //form(method='post')
          textarea(id="textarea", name="content", cols="80", rows="15")
 
 block append script
-   script(src='/vendor/bower_components/socket.io-client/socket.io.js', type='text/javascript')
-   script(src='/js/chat.js', type='text/javascript')
+   script(src='vendor/bower_components/socket.io-client/socket.io.js', type='text/javascript')
+   script(src='vendor/bower_components/jquery.cookie/jquery.cookie.js', type='text/javascript')
+   script(src='js/chat.js', type='text/javascript')
    script(language='javascript', type='text/javascript', src='/js/edit_area/edit_area_full.js')
-   script(language='javascript', type='text/javascript').
+   //script(type='text/javascript').
       editAreaLoader.init({
-      id : "textarea"		// textarea id
-      ,syntax: "css"            // syntax to be uses for highgliting
-      ,start_highlight: true        // to display with highlight mode on start-up
+         id : "textarea"
+         , syntax: "css"
+         , start_highlight: true
       });

@@ -1,74 +1,98 @@
 /**
  * Created by jenia0jenia on 24.03.2015.
  */
-var socket = io.connect();
 
-var form = $('#chat form')
-    , ul = $('#chat ul')
-    , input = $('#chat input');
+$(function() {
 
-socket
-    .on('message', function (username, message) {
-        printMessage(username + '> ' + message);
-    })
 
-    .on('leave', function(username) {
-        printStatus(username + " вышел из чата");
-    })
+    var FADE_TIME = 150; // ms
+    var TYPING_TIMER_LENGTH = 400; // ms
+    var form = $('#chat form')
+        , ul = $('#chat ul')
+        , input = $('#chat input')
+        , users = $('#list')
+        , textarea = $('#textarea')
+        , user = {};
+    textarea.on('cut paste keyup', inputCode);
+    var socket = io.connect();
+    // Prompt for setting a username
+    var connected = false;
+    var typing = false;
+    var lastTypingTime;
 
-    .on('join', function(username) {
-        printStatus(username + " вошёл в чат");
-    })
+    socket
+        .on('message', function (username, message) {
+            printMessage(username + '> ' + message);
+        })
 
-    .on('connect', function() {
-        printStatus("соединение установлено");
-        form.on('submit', sendMessage);
-        input.prop('disabled', false);
+        .on('leave', function(username, userList) {
+            printStatus(username + " вышел из чата");
+            showUsers(userList);
+        })
 
-    })
+        .on('join', function(username, userList) {
+            printStatus(username + " вошёл в чат");
+            showUsers(userList);
+        })
 
-    .on('disconnect', function() {
-        printStatus("соединение потеряно");
-        form.off('submit', sendMessage);
-        input.prop('disabled', true);
-        //setTimeout(reconnect, 500);
-        this.emit('error');
-    })
+        .on('connect', function() {
+            printStatus("соединение установлено");
+            user = { username: $.cookie('username'), userID: $.cookie('userID') };
+            if (!user.userID) {
+                user.username = prompt('what is you\'re name?', 'Student') || 'Anonymous';
+                user = { username: user.username, userID: Math.random() };
+                $.cookie('username', user.username);
+                $.cookie('userID', user.userID);
+                //console.log('was created new user');
+            }
+            socket.emit('add user', user, function(userList){
+                //console.log('user list', userList);
+                showUsers(userList);
+            });
+            form.on('submit', sendMessage);
+            input.prop('disabled', false);
+        })
 
-    .on('logout', function() {
-        location.href = "/";
-    })
+        .on('disconnect', function() {
+            printStatus("соединение потеряно");
+            form.off('submit', sendMessage);
+            input.prop('disabled', true);
+        })
 
-    .on('error', function(reason) {
-        //           if (reason == "handshake unauthorized") {
-        //              printStatus("вы вышли из сайта");
-        //           } else {
-        setTimeout(function () {
-            socket.connect();
-        }, 500);
-        //           }
-    });
+        .on('change code', function(text){
+            changeCode(text);
+        });
 
-function reconnect() {
-    socket.once('error', function() {
-        setTimeout(reconnect, 500);
-    });
-    socket.connect();
-}
+    function sendMessage() {
+        var text = input.val();
+        text && socket.emit('message', text, function() {
+            //printMessage("я> " + text);
+        });
+        input.val('');
+        return false;
+    }
 
-function sendMessage() {
-    var text = input.val();
-    socket.emit('message', text, function() {
-        printMessage("я> " + text);
-    });
-    input.val('');
-    return false;
-}
+    function printStatus(status) {
+        ul.prepend($('<li>').append($('<i>').text(status)));
+    }
 
-function printStatus(status) {
-    $('<li>').append($('<i>').text(status)).appendTo(ul);
-}
+    function printMessage(text) {
+        ul.prepend($('<li>').text(text));
+    }
 
-function printMessage(text) {
-    $('<li>').text(text).appendTo(ul);
-}
+    function inputCode() {
+    var code = textarea.val();
+        socket.emit('change code', code);
+    }
+
+    function changeCode(text) {
+        textarea.val(text);
+    }
+
+    function showUsers(userList){
+        users.text(userList);
+    }
+}());
+
+
+

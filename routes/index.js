@@ -1,19 +1,17 @@
 //var router = express.Router();
 
 /* GET home page. */
-var checkAuth = require('middleware/checkAuth');
+var config = require('./config');
+var hardcode = require('./hardcode');
 module.exports = function(app) {
 
   app.get('/', require('./frontpage').get);
 
-  app.get('/userconfig', require('./userconfig').get);
-  app.post('/userconfig', require('./userconfig').post);
+  app.route('/config')
+      .get(config.get)
+      .post(config.post);
 
-  app.get('/hardcode', checkAuth, require('./hardcode').get);
-
-  app.get('/login', require('./login').get);
-  app.post('/login', require('./login').post);
-
-  app.post('/logout', require('./logout').post);
-
+  app.route('/hardcode')
+      .get(hardcode.get)
+      .post(hardcode.post);
 };

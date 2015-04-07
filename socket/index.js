@@ -7,139 +7,97 @@
  */
 
 //var logger = require('morgan');
-var cookieParser = require('cookie-parser');
 var async = require('async');
-var cookie = require('cookie');
-var sessionStore = require('lib/sessionStore');
-var User = require('models/user').User;
+var collection = require('lib/monk');
 
-
-// избавиться от дублирующихся имён в чате
-// либо при авторизации, либо при подключении on.connection
-
-
-function loadSession(sid, callback) {
-    // sessionStore callback is not quite async-style!
-    sessionStore.load(sid, function(err, session) {
-        if (arguments.length == 0) {
-            // no arguments => no session
-            return callback(null, null);
-        } else {
-            return callback(null, session);
-        }
-    });
-
+function checkUsername(username) {
+    username = username.replace(/,|\.|:|;|\[|]|\{|}/g, '') || 'Anonymous';
+    return username;
 }
 
-function loadUser(session, callback) {
-
-    if (!session.user) {
-        //console.log("Session %s is anonymous", session.id);
-        //log.debug("Session %s is anonymous", session.id);
-        return callback(null, null);
+var userList = {};
+function getUsersArray(userList) {
+    var arr = [];
+    for (var item in userList) {
+        arr.push(userList[item].username);
     }
-    //console.log("retrieving user ", session.user);
-    //log.debug("retrieving user ", session.user);
-
-    User.findById(session.user, function(err, user) {
-        if (err) return callback(err);
-
-        if (!user) {
-            return callback(null, null);
-        }
-        //console.log("user findById result:", user.username);
-        //log.debug("user findById result:", user);
-        callback(null, user);
-    });
-
+    return arr;
 }
 
 module.exports = function(server) {
     var io = require('socket.io').listen(server);
-    io.set('origins', 'localhost:*');
-    //io.set('logger', logger);
-
-    io.set('authorization', function(handshake, callback) {
-
-        async.waterfall([
-            function(callback) {
-                handshake.cookies = cookie.parse(handshake.headers.cookie || ''); // строка с куками
-                var sidCookie = handshake.cookies['sid'];
-                var sid = cookieParser.signedCookie(sidCookie, 'Amalgama');
-                loadSession(sid, callback); // получаем сессию из базы
-            },
-
-            function(session, callback) {
-
-                if (!session) {
-                    callback(401);
-                }
-                handshake.session = session;
-                loadUser(session, callback);
-            },
-
-            function(user, callback) {
-                if (!user) {
-                    callback(403);
-                }
-                handshake.user = user;
-                callback(null);
-            }
-        ], function(err) { // результат авторизации
-            if (!err) {
-                return callback(null, true);
-            }
-            //
-            //if (err instanceof HttpError) {
-            //    return callback(null, false);
-            //}
-            callback(err);
-        });
-
-    });
-
-    io.sockets.on('session:reload', function(sid) {
-        var clients = io.sockets.clients();
-        console.log('1', clients);
-        console.log('2', io.sockets);
-        console.log('3', sid);
-        clients.forEach(function(client) {
-            if (client.handshake.session.id != sid) return;
-
-            loadSession(sid, function(err, session) {
-                if (err) {
-                    client.emit("error", "server error");
-                    client.disconnect();
-                    return;
-                }
-
-                if (!session) {
-                    client.emit("logout");
-                    client.disconnect();
-                    return;
-                }
-
-                client.handshake.session = session;
-            });
-
-        });
-
-    });
-
-    io.sockets.on('connection', function(socket) {
+    io.on('connection', function(socket) {
+        //console.log('connection', userList.userID.tabs);
+        var url = socket.handshake.headers.referer.split('/');
+        url = url[url.length - 1];
         //получаем данные о подключённом пользователе
-        var username = socket.request.user.username;
-        socket.broadcast.emit('join', username);
-        console.log('ws',socket.handshake);
-        socket.on('message', function(text, cb) { //
-            socket.broadcast.emit('message', username, text);
-            cb && cb();
-        });
+        socket
+            .on('add user', function(user, cb) {
+                socket.userID = user.userID;
+                socket.username = checkUsername(user.username);
+                //console.log(socket.userID, socket.username);
+                if (!(socket.userID in userList)) { // если юзера нет в userList
+                    userList[user.userID] = user;
+                    userList[user.userID].tabs = 0;
+                    //console.log(userList[socket.userID]);
+                    //console.log(userList[user.userID].tabs);
+                    socket.broadcast.emit('join', user.username, getUsersArray(userList));
+                }
+                async.waterfall([
+                        function(callback) {
+                            collection.findOne({ userID: socket.userID, url: url}, callback);
+                        },
+                        function(doc, callback) {
+                            if (!doc) collection.insert({ userID: socket.userID, url: url, code: ''}, callback);
+                            else callback(null, doc);
+                        }
+                    ],
+                    function(err, result) {
+                        if (err) throw err;
+                        socket.emit('change code', result.code);
+                        userList[socket.userID].tabs++;
+                        console.log(userList[user.userID].tabs);
+                        cb(getUsersArray(userList));
+                    }
+                );
 
-        socket.on('disconnect', function() {
-            socket.broadcast.emit('leave', username);
-        });
+            })
+
+            .on('message', function(text, cb) {
+                io.emit('message', socket.username, text);
+                cb && cb();
+            })
+
+            .on('typing', function () {
+                socket.broadcast.emit('typing', socket.username);
+            })
+
+            .on('stop typing', function () {
+                socket.broadcast.emit('stop typing', socket.username);
+            })
+
+            .on('disconnect', function(username, cb) {
+                console.log(userList[socket.userID].tabs);
+                if (userList[socket.userID].tabs === 1) {
+                    //console.log('tabs', userList[socket.userID]);
+                    //console.log('on logout', socket.userID);
+                    delete userList[socket.userID];
+                    setTimeout(function () {
+                        socket.broadcast.emit('leave', socket.username, getUsersArray(userList));
+                    }, 1000);
+                    cb && cb();
+                } else {  userList[socket.userID].tabs--; }
+
+            })
+
+            .on('change code', function(code, cb) {
+                collection.update({url: url}, { $set: {code: code} }, function(err, result) {
+                    if (err) throw err;
+                    socket.broadcast.emit('change code', code);
+                    cb && cb();
+                    //console.log('changed code', result);
+                });
+            });
     });
-
     return io;
 };

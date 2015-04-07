@@ -5,7 +5,6 @@ html
     title Room
     link(rel='stylesheet', href='vendor/bower_components/bootstrap/dist/css/bootstrap.css', type='text/css')
     link(rel='stylesheet', href='stylesheets/style.css')
-
   body
     .content
       .container
@@ -15,15 +14,8 @@ html
           #navigation.col-sm-9.well
             ul(class='nav navbar-nav')
               li: a(href='/') Home
-
-              - if (user)
-                li: a(href='/hardcode') Work here
-                li: a(href='/userconfig') #{user}'s configuration
-                li: a(href='', onclick="$('<form method=POST action=/logout>').submit(); return false") Exit
-              - else
-                li: a(href='/login') Login
-
+              li: a(href='/hardcode') Work here
         block content
   block script
-    script(src='/vendor/bower_components/jquery/dist/jquery.js', type='text/javascript')
-    script(src='/vendor/bower_components/bootstrap/dist/js/bootstrap.js', type='text/javascript')
+    script(src='vendor/bower_components/jquery/dist/jquery.js', type='text/javascript')
+    script(src='vendor/bower_components/bootstrap/dist/js/bootstrap.js', type='text/javascript')
