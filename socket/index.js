@@ -56,7 +56,7 @@ module.exports = function(server) {
                         if (err) throw err;
                         socket.emit('change code', result.code);
                         userList[socket.userID].tabs++;
-                        console.log(userList[user.userID].tabs);
+                        //console.log(userList[user.userID].tabs);
                         cb(getUsersArray(userList));
                     }
                 );
@@ -77,7 +77,7 @@ module.exports = function(server) {
             })
 
             .on('disconnect', function(username, cb) {
-                console.log(userList[socket.userID].tabs);
+                //console.log(userList[socket.userID].tabs);
                 if (userList[socket.userID].tabs === 1) {
                     //console.log('tabs', userList[socket.userID]);
                     //console.log('on logout', socket.userID);
@@ -95,7 +95,7 @@ module.exports = function(server) {
                     if (err) throw err;
                     socket.broadcast.emit('change code', code);
                     cb && cb();
-                    //console.log('changed code', result);
+                    //console.log('changed code', code);
                 });
             });
     });

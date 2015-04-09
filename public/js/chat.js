@@ -4,16 +4,22 @@
 
 $(function() {
 
-
+    var editor = ace.edit("editor");
+    var session = editor.getSession();
+    editor.setTheme("ace/theme/textmate");
+    session.setUseWrapMode(true);
+    session.setUseWorker(false);
+    session.setMode("ace/mode/javascript");
     var FADE_TIME = 150; // ms
     var TYPING_TIMER_LENGTH = 400; // ms
     var form = $('#chat form')
         , ul = $('#chat ul')
         , input = $('#chat input')
         , users = $('#list')
-        , textarea = $('#textarea')
-        , user = {};
-    textarea.on('cut paste keyup', inputCode);
+        , user = {}
+        , trigger
+        , ignoreAceChange = true;
+
     var socket = io.connect();
     // Prompt for setting a username
     var connected = false;
@@ -49,8 +55,7 @@ $(function() {
                 //console.log('user list', userList);
                 showUsers(userList);
             });
-            form.on('submit', sendMessage);
-            input.prop('disabled', false);
+            initialization();
         })
 
         .on('disconnect', function() {
@@ -59,8 +64,8 @@ $(function() {
             input.prop('disabled', true);
         })
 
-        .on('change code', function(text){
-            changeCode(text);
+        .on('change code', function(code){
+            changeCode(code);
         });
 
     function sendMessage() {
@@ -80,19 +85,36 @@ $(function() {
         ul.prepend($('<li>').text(text));
     }
 
-    function inputCode() {
-    var code = textarea.val();
-        socket.emit('change code', code);
+    function initialization() {
+        input.prop('disabled', false);
+        form.on('submit', sendMessage);
+        editor.$blockScrolling = Infinity;
+        //editor.setReadOnly(true);
+        ignoreAceChange = false;
+        editor.on("change", function() {
+            var code = session.getValue();
+            if (!ignoreAceChange) {
+                console.log('ace editor chang');
+                setTimeout(function () {
+                    socket.emit('change code', session.getValue());
+                }, 500);
+            }
+            //console.log(editor.$blockScrolling);
+        });
     }
 
-    function changeCode(text) {
-        textarea.val(text);
+    function changeCode(newCode) {
+        var currentCode = session.getValue();
+        if (newCode !== currentCode) {
+            console.log('new code comes');
+            //console.log(newCode !== session.getValue());
+            ignoreAceChange = true;
+            session.setValue(newCode);
+        }
+        ignoreAceChange = false;
     }
 
     function showUsers(userList){
         users.text(userList);
     }
 }());
-
-
-
