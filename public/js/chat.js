@@ -43,19 +43,21 @@ $(function() {
 
         .on('connect', function() {
             printStatus("соединение установлено");
-            user = { username: $.cookie('username'), userID: $.cookie('userID') };
+            var url = window.location.href.split('/').pop();
+            user = { username: $.cookie('username'), userID: $.cookie('userID'), room: url };
+            console.log(user);
             if (!user.userID) {
                 user.username = prompt('what is you\'re name?', 'Student') || 'Anonymous';
-                user = { username: user.username, userID: Math.random() };
+                user.userID = Math.random();
                 $.cookie('username', user.username);
                 $.cookie('userID', user.userID);
                 //console.log('was created new user');
             }
-            socket.emit('add user', user, function(userList){
+            socket.emit('add user', user, function(userList, readOnly){
                 //console.log('user list', userList);
                 showUsers(userList);
+                initialization(readOnly);
             });
-            initialization();
         })
 
         .on('disconnect', function() {
@@ -85,16 +87,16 @@ $(function() {
         ul.prepend($('<li>').text(text));
     }
 
-    function initialization() {
+    function initialization(readOnly) {
         input.prop('disabled', false);
         form.on('submit', sendMessage);
         editor.$blockScrolling = Infinity;
-        //editor.setReadOnly(true);
+        editor.setReadOnly(readOnly);
         ignoreAceChange = false;
         editor.on("change", function() {
             var code = session.getValue();
             if (!ignoreAceChange) {
-                console.log('ace editor chang');
+                //console.log('ace editor chang');
                 setTimeout(function () {
                     socket.emit('change code', session.getValue());
                 }, 500);
@@ -106,7 +108,7 @@ $(function() {
     function changeCode(newCode) {
         var currentCode = session.getValue();
         if (newCode !== currentCode) {
-            console.log('new code comes');
+            //console.log('new code comes');
             //console.log(newCode !== session.getValue());
             ignoreAceChange = true;
             session.setValue(newCode);
