@@ -18,16 +18,9 @@ module.exports = function(app) {
 
     app.all('*', function (req, res) {
         var url = req.url.replace('/', '');
-        //    prevUrl = req.header('Referer');
-        //
-        //console.log(prevUrl);
-        //console.log(url);
-        //prevUrl = prevUrl ? prevUrl.split('/').pop() : '/';
-
         collection.find({url: url}, function(err, result) {
             if (err) throw err;
             if (result.toString()) {
-                //console.log(result);
                     res.render('hardcode');
             } else {
                 res.status(404);

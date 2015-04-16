@@ -27,22 +27,20 @@ function checkUsername(username) {
  * @type {{}}
  */
 var userList = {},
-    readOnly = true,
-    room;
+    room = {};
+    //readOnly = true
 /**
- * Creates array of users names from object userList
- * in current room
+ * Creates array of users names from object userList in current room
  * @param userList
- * @param room
  * @returns {Array}
  */
 function getUsersArray(userList, room) {
     var arr = [];
     for (var item in userList) {
-        if (userList[item].room === room){
-            arr.push(userList[item].username);
-        }
+        if (userList[item][room])
+            arr.push(userList[item][room].username);
     }
+    //console.log(arr);
     return arr;
 }
 
@@ -50,7 +48,6 @@ module.exports = function(server) {
     var io = require('socket.io').listen(server);
 
     io.on('connection', function(socket) {
-        //получаем данные о подключённом пользователе
         socket
         /**
          * событие при подключение пользователя или при открытии новой вкладки текущего пользователя
@@ -60,30 +57,30 @@ module.exports = function(server) {
                 socket.room = user.room;
                 socket.userID = user.userID;
                 socket.username = checkUsername(user.username);
-                //console.log(user);
                 /**
-                 * если юзера нет в userList, то добавим его
-                 * и сообщим остальным о его подключении
+                 * если юзера нет в userList или его нет в подклчаемой комнате, то добавим его (url)
                  */
-                if ((!(socket.userID in userList)) || userList[socket.userID].room !== socket.room) {
-                    userList[socket.userID] = {tabs: 0, room: socket.room, username: socket.username};
-                    console.log(userList);
+                if ( !(socket.userID in userList) || !(socket.room in userList[socket.userID]) ) {
+                    userList[socket.userID] = {};
+                    userList[socket.userID][socket.room] = {tabs: 0, username: socket.username, readOnly: true};
                     //console.log(userList[user.userID].tabs);
                     socket.broadcast.to(socket.room).emit('join', socket.username, getUsersArray(userList, socket.room));
+                    //console.log('1:', socket.userID in userList);
                 }
+                //console.log('1****users list', userList);
                 async.waterfall([
                         function(callback) {
-                            //console.log(socket.room);
+                            //console.log('users names in this room', userList[socket.userID][socket.room]);
                             collection.findOne({ url: socket.room }, callback);
                         },
                         function(doc, callback) {
                             //console.log(doc);
                             if (!doc.userID) {
-                                readOnly = false;
+                                userList[socket.userID][socket.room].readOnly = 'admin';
                                 //console.log('update haas been');
                                 collection.findAndModify({ query:{url: socket.room}, update: {$set : {userID: socket.userID}} }, callback)
                             } else if (doc.userID === socket.userID) {
-                                readOnly = false;
+                                userList[socket.userID][socket.room].readOnly = 'admin';
                                 callback(null, doc);
                             } else {
                                 callback(null, doc);
@@ -94,12 +91,12 @@ module.exports = function(server) {
                         if (err) throw err;
                         //console.log(result);
                         socket.emit('change code', result.code);
-                        userList[socket.userID].tabs++;
+                        userList[socket.userID][socket.room].tabs++;
                         //console.log(result.code);
-                        cb(getUsersArray(userList, socket.room), readOnly);
+                        cb(getUsersArray(userList, socket.room), userList[socket.userID][socket.room].readOnly);
+                        //console.log('2****users list', userList);
                     }
                 );
-
             })
 
             .on('message', function(text, cb) {
@@ -116,17 +113,15 @@ module.exports = function(server) {
             })
 
             .on('disconnect', function(username, cb) {
-                //console.log(userList[socket.userID].tabs);
-                if (userList[socket.userID].tabs === 1) {
-                    //console.log('tabs', userList[socket.userID]);
+                //console.log(userList[socket.userID][socket.room].tabs);
+                if ( userList[socket.userID][socket.room].tabs === 1 ) {
                     //console.log('on logout', socket.userID);
-                    userList[socket.userID] = 0;
+                    delete userList[socket.userID][socket.room];
                     setTimeout(function () {
                         socket.broadcast.to(socket.room).emit('leave', socket.username, getUsersArray(userList, socket.room));
                     }, 1000);
                     cb && cb();
-                } else {  userList[socket.userID].tabs--; }
-
+                } else { userList[socket.userID][socket.room].tabs--; }
             })
 
             .on('change code', function(code, cb) {

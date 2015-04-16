@@ -91,7 +91,7 @@ $(function() {
         input.prop('disabled', false);
         form.on('submit', sendMessage);
         editor.$blockScrolling = Infinity;
-        editor.setReadOnly(readOnly);
+        readOnly === 'admin' ? editor.setReadOnly(false) : editor.setReadOnly(true);
         ignoreAceChange = false;
         editor.on("change", function() {
             var code = session.getValue();

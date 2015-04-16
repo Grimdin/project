@@ -3,10 +3,7 @@
 var collection = require('../lib/monk');
 
 exports.get = function (req, res) {
-        var url = getRandomPage();
-        //console.log(req.route);
-
-        //console.log(req.originalUrl);
+        var url = getRandomPage(6);
         collection.insert({ userID: '', url: url, code: '' }, function(err, result) {
                 if (err) throw err;
                 if (result) {
@@ -19,14 +16,17 @@ exports.get = function (req, res) {
                         });
                 }
         });
-
-                //res.render('hardcode');
 };
 
-function getRandomPage(){
+/**
+ * Получить рандомную строку длинной length. Это будет УРЛ документа
+ * @param length
+ * @returns {string}
+ */
+function getRandomPage(length){
         var possible = 'abcdefghijklmnopqrstuvwxyz';
         var randPage = '';
-        for (var i = 6; i--;)
+        for (var i = length; i--;)
                 randPage += possible.charAt(Math.floor(Math.random() * possible.length));
         return randPage;
 }
