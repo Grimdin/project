@@ -3,34 +3,44 @@
 
 extends layout
 block append content
-   style(type="text/css", media="screen").
-      #editor {
-         position: relative;
-         min-height: 400px;
-         padding-right: 15px;
-         padding-left: 15px;
-         background: white;
-      }
    .row
       .col-sm-3
          #lang
-            h4 Select language
+            h4 Выбрать язык
             select.form-control
-               option html
-               option css
+               option(value="") assembly_x86
+               option(value="") coffee
+               option(value="") c_cpp
+               option(value="") csharp
+               option(value="") css
+               option(value="") haskell
+               option(value="") html
+               option(value="") java
+               option(value="" selected=true) javascript
+               option(value="") json
+               option(value="") lisp
+               option(value="") mysql
+               option(value="") ruby
+               option(value="") pascal
+               option(value="") php
+               option(value="") python
+               option(value="") perl
+               option(value="") plain_text
+               option(value="") powershell
          div(id="members", style="height: 150px;")
-            h4 Members
-            h4(id="list", style="height: 125px; overflow:hidden; overflow-y:auto; overflow-x:auto;")
-
+            h4 Участники
+            h4(id="list" style="height: 125px; overflow:hidden; overflow-y:auto; overflow-x:auto;")
          #chat
-            h4 Chat here
+            h4 Чат
             form
                input(disabled='false', class='form-control', autocomplete='off', autofocus='true', placeholder='Message...')
-            ul(class="list-unstyled", style="height:200px; overflow:hidden; overflow-y:auto;")
+            small: ul(class="list-unstyled", style="height:200px; overflow:hidden; overflow-y:auto;")
       #editor.col-sm-9
-
 block append script
    script(src='/vendor/bower_components/socket.io-client/socket.io.js', type='text/javascript')
    script(src='/vendor/bower_components/jquery.cookie/jquery.cookie.js', type='text/javascript')
-   script(src='/vendor/bower_components/ace-builds/src-min/ace.js', type="text/javascript")
+   script(src='/vendor/bower_components/bootbox/bootbox.js', type='text/javascript')
+   script(src='/vendor/bower_components/ace-builds/src-noconflict/ace.js', type="text/javascript")
+   script(src='/vendor/bower_components/ace-builds/src-noconflict/ext-emmet.js', type="text/javascript")
+   script(src='/vendor/bower_components/ace-builds/src-noconflict/emmet.js', type="text/javascript")
    script(src='/js/chat.js', type='text/javascript')

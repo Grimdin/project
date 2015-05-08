@@ -1,28 +1,28 @@
+'use strict'
 /**
  * Created by jenia0jenia on 24.03.2015.
  */
-
 $(function() {
-
     var editor = ace.edit("editor");
     var session = editor.getSession();
+    editor.setOption("enableEmmet", true);
     editor.setTheme("ace/theme/textmate");
+    session.setMode("ace/mode/javascript");
+    editor.$blockScrolling = Infinity;
     session.setUseWrapMode(true);
     session.setUseWorker(false);
-    session.setMode("ace/mode/javascript");
+
     var FADE_TIME = 150; // ms
     var TYPING_TIMER_LENGTH = 400; // ms
     var form = $('#chat form')
         , ul = $('#chat ul')
         , input = $('#chat input')
-        , users = $('#list')
+        , list = $('#list')
         , user = {}
-        , trigger
         , ignoreAceChange = true;
 
     var socket = io.connect();
     // Prompt for setting a username
-    var connected = false;
     var typing = false;
     var lastTypingTime;
 
@@ -32,6 +32,7 @@ $(function() {
         })
 
         .on('leave', function(username, userList) {
+            //console.log('has leave');
             printStatus(username + " вышел из чата");
             showUsers(userList);
         })
@@ -45,19 +46,30 @@ $(function() {
             printStatus("соединение установлено");
             var url = window.location.href.split('/').pop();
             user = { username: $.cookie('username'), userID: $.cookie('userID'), room: url };
-            console.log(user);
+            //console.log(user);
             if (!user.userID) {
-                user.username = prompt('what is you\'re name?', 'Student') || 'Anonymous';
-                user.userID = Math.random();
-                $.cookie('username', user.username);
-                $.cookie('userID', user.userID);
-                //console.log('was created new user');
+                bootbox.prompt({
+                    title: "What is you\'re name?",
+                    value: "Student",
+                    callback: function(result){
+                        user.username = result || 'Anonymous';
+                        user.userID = Math.random();
+                        $.cookie('username', user.username);
+                        $.cookie('userID', user.userID);
+                        socket.emit('add user', user, function(userList){
+                            console.log('user list', userList[user.userID].username);
+                            showUsers(userList);
+                            initialization(userList[user.userID].readOnly);
+                        });
+                    }
+                });
+            } else {
+                socket.emit('add user', user, function(userList){
+                    console.log('user list', userList[user.userID].username);
+                    showUsers(userList);
+                    initialization(userList[user.userID].readOnly);
+                });
             }
-            socket.emit('add user', user, function(userList, readOnly){
-                //console.log('user list', userList);
-                showUsers(userList);
-                initialization(readOnly);
-            });
         })
 
         .on('disconnect', function() {
@@ -72,9 +84,7 @@ $(function() {
 
     function sendMessage() {
         var text = input.val();
-        text && socket.emit('message', text, function() {
-            //printMessage("я> " + text);
-        });
+        text && socket.emit('message', text);
         input.val('');
         return false;
     }
@@ -90,7 +100,6 @@ $(function() {
     function initialization(readOnly) {
         input.prop('disabled', false);
         form.on('submit', sendMessage);
-        editor.$blockScrolling = Infinity;
         readOnly === 'admin' ? editor.setReadOnly(false) : editor.setReadOnly(true);
         ignoreAceChange = false;
         editor.on("change", function() {
@@ -117,6 +126,64 @@ $(function() {
     }
 
     function showUsers(userList){
-        users.text(userList);
+        var html = '';
+        if (userList[user.userID].readOnly === 'admin') {
+            for (var i in userList) {
+                html += '<a class="menu">' + userList[i].username + '</a>' + ', ';
+            }
+            html = html.slice(0, html.length - 2);
+            list.html(html);
+            $('.menu').click(function() { bootbox.dialog({
+                message: "Options",
+                title: "What do you want...",
+                onEscape: function() {},
+                show: true,
+                backdrop: true,
+                closeButton: true,
+                animate: true,
+                className: "my-modal",
+                buttons: {
+                    success: {
+                        label: "Set write option",
+                        className: "btn-success",
+                        callback: setRight
+                    },
+                    "Danger!": {
+                        label: "Set read-only",
+                        className: "btn-danger",
+                        callback: setRight
+                    },
+                    "Another label": {
+                        label: "Cancel",
+                        className: "btn-primary",
+                        callback: setRight
+                    }
+                }
+            }) } );
+        } else {
+            for (i in userList) {
+                html += userList[i].username + ', ';
+            }
+            html = html.slice(0, html.length - 2);
+            list.text(html);
+        }
+        //console.log('i\'ll show you users list', userList);
     }
+
+    document.getElementById('lang').onchange = function() {
+        var lang = $( "#lang option:selected").text();
+        session.setMode("ace/mode/" + lang);
+        //console.log(lang);
+        editor.focus();
+        var count = session.getLength();
+        editor.gotoLine(count, session.getLine(count-1).length);
+    };
+
+    function setRight() {
+        user.readOnly = true;
+        editor.setReadOnly(false);
+        //socket.emit('change rights', );
+        return;
+    }
+
 }());

@@ -5,16 +5,17 @@ body {
 
 a {
   color: #00B7FF;
+  cursor: pointer;
 }
 h2 {
   margin: 0.5em 0 0.1em;
   text-align: center;
 }
-.textInput {
-  display: block;
-  width: 98%;
-  float: left;
-}
+/*.textInput {*/
+  /*display: block;*/
+  /*width: 98%;*/
+  /*float: left;*/
+/*}*/
 input {
   width:100%;
   height:300px;
@@ -27,3 +28,16 @@ label:hover {
   text-decoration: underline;
   cursor: pointer;
 }
+
+#editor {
+  position: relative;
+  min-height: 400px;
+  padding-right: 15px;
+  padding-left: 15px;
+  background: white;
+}
+
+.menu {
+
+}
+
