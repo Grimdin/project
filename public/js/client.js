@@ -33,17 +33,17 @@ $(function() {
 
         .on('leave', function(username, userList) {
             printStatus(username + " вышел из чата");
-            showUsers(userList);
+            showUsers(userList, user.readOnly);
         })
 
         .on('join', function(username, userList) {
             printStatus(username + " вошёл в чат");
-            showUsers(userList);
+            showUsers(userList, user.readOnly);
         })
 
         .on('connect', function() {
             printStatus("соединение установлено");
-            user = { username: $.cookie('username'), userID: $.cookie('userID'), room: url };
+            user = { username: $.cookie('username'), userID: $.cookie('userID'), room: url, readOnly: true };
             if (!user.userID) {
                 bootbox.prompt({
                     title: "What is you\'re name?",
@@ -54,14 +54,12 @@ $(function() {
                         $.cookie('username', user.username);
                         $.cookie('userID', user.userID);
                         socket.emit('add user', user, function(userList){
-                            showUsers(userList);
                             initialization(userList);
                         });
                     }
                 });
             } else {
                 socket.emit('add user', user, function(userList){
-                    showUsers(userList);
                     initialization(userList);
                 });
             }
@@ -77,9 +75,15 @@ $(function() {
             changeCode(code);
         })
 
-        .on('change rights', function(readOnly){
-            console.log(readOnly);
-            editor.setReadOnly(readOnly);
+        .on('change rights', function(emit){
+            if (emit === true) {
+                editor.setReadOnly(emit);
+            } else if (emit === false) {
+                editor.setReadOnly(emit);
+            } else if (emit === 'disconnect') {
+                alert ('Вы были отключены администратором!')
+            }
+            console.log(emit);
         });
 
     function sendMessage() {
@@ -98,10 +102,16 @@ $(function() {
     }
 
     function initialization(userList) {
-        if (userList[0].hasOwnProperty("readOnly")) {
-            editor.setReadOnly(true);
+        userList.forEach(function(oneUser) {
+            if (user.userID === oneUser.userID) user.readOnly = oneUser.readOnly;
+        });
+        // отображаем список участников
+        showUsers(userList, user.readOnly);
+        // выставляем права на редактирование кода
+        if (user.readOnly === 'admin' || !user.readOnly) {
+            editor.setReadOnly(false);
         } else {
-            editor.setReadOnly(false)
+            editor.setReadOnly(true)
         }
         input.prop('disabled', false);
         form.on('submit', sendMessage);
@@ -125,12 +135,9 @@ $(function() {
         ignoreAceChange = false;
     }
 
-    function showUsers(userList){
-        var html = '',
-            readOnly;
-        userList.forEach(function(usr, i, userList) {
-            if (user.userID === usr.userID) readOnly = usr.readOnly;
-        });
+    function showUsers(userList, readOnly){
+        console.log(userList, 'and', readOnly)
+        var html = '';
         if (readOnly === 'admin'){
             userList.forEach(function(user, i, userList) {
                 html += '<a class="menu" id="'+ userList[i].userID +'">' + user.username + '</a>' + ', ';
@@ -150,17 +157,24 @@ $(function() {
                     className: "my-modal",
                     buttons: {
                         success: {
-                            label: "Set write option",
+                            label: "Установить права на редактирование",
                             className: "btn-success",
                             callback: function() {
                                 setRight(clickedUserID, false)
                             }
                         },
                         "Danger!": {
-                            label: "Set read-only",
+                            label: "Установить права только на чтение",
                             className: "btn-danger",
                             callback: function() {
                                 setRight(clickedUserID, true)
+                            }
+                        },
+                        "Disconnect!": {
+                            label: "Отключить участника",
+                            className: "btn-danger",
+                            callback: function() {
+                                setRight(clickedUserID, 'disconnect')
                             }
                         }
                     }})
@@ -182,9 +196,9 @@ $(function() {
         editor.gotoLine(count, session.getLine(count-1).length);
     };
 
-    function setRight(userID, readOnly) {
+    function setRight(userID, emit) {
         console.log('set rights');
-        return socket.emit('change rights', userID, url, readOnly);
+        return socket.emit('change rights', userID, url, emit);
     }
 
 }());
