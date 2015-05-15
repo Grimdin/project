@@ -20,7 +20,7 @@ $(function() {
         , list = $('#list')
         , user = {}
         , ignoreAceChange = true;
-
+    var url = window.location.href.split('/').pop();
     var socket = io.connect();
     // Prompt for setting a username
     var typing = false;
@@ -32,7 +32,6 @@ $(function() {
         })
 
         .on('leave', function(username, userList) {
-            //console.log('has leave');
             printStatus(username + " вышел из чата");
             showUsers(userList);
         })
@@ -44,9 +43,7 @@ $(function() {
 
         .on('connect', function() {
             printStatus("соединение установлено");
-            var url = window.location.href.split('/').pop();
             user = { username: $.cookie('username'), userID: $.cookie('userID'), room: url };
-            //console.log(user);
             if (!user.userID) {
                 bootbox.prompt({
                     title: "What is you\'re name?",
@@ -57,17 +54,15 @@ $(function() {
                         $.cookie('username', user.username);
                         $.cookie('userID', user.userID);
                         socket.emit('add user', user, function(userList){
-                            console.log('user list', userList[user.userID].username);
                             showUsers(userList);
-                            initialization(userList[user.userID].readOnly);
+                            initialization(userList);
                         });
                     }
                 });
             } else {
                 socket.emit('add user', user, function(userList){
-                    console.log('user list', userList[user.userID].username);
                     showUsers(userList);
-                    initialization(userList[user.userID].readOnly);
+                    initialization(userList);
                 });
             }
         })
@@ -80,6 +75,11 @@ $(function() {
 
         .on('change code', function(code){
             changeCode(code);
+        })
+
+        .on('change rights', function(readOnly){
+            console.log(readOnly);
+            editor.setReadOnly(readOnly);
         });
 
     function sendMessage() {
@@ -97,28 +97,28 @@ $(function() {
         ul.prepend($('<li>').text(text));
     }
 
-    function initialization(readOnly) {
+    function initialization(userList) {
+        if (userList[0].hasOwnProperty("readOnly")) {
+            editor.setReadOnly(true);
+        } else {
+            editor.setReadOnly(false)
+        }
         input.prop('disabled', false);
         form.on('submit', sendMessage);
-        readOnly === 'admin' ? editor.setReadOnly(false) : editor.setReadOnly(true);
         ignoreAceChange = false;
         editor.on("change", function() {
             var code = session.getValue();
             if (!ignoreAceChange) {
-                //console.log('ace editor chang');
                 setTimeout(function () {
                     socket.emit('change code', session.getValue());
                 }, 500);
             }
-            //console.log(editor.$blockScrolling);
         });
     }
 
     function changeCode(newCode) {
         var currentCode = session.getValue();
         if (newCode !== currentCode) {
-            //console.log('new code comes');
-            //console.log(newCode !== session.getValue());
             ignoreAceChange = true;
             session.setValue(newCode);
         }
@@ -126,64 +126,65 @@ $(function() {
     }
 
     function showUsers(userList){
-        var html = '';
-        if (userList[user.userID].readOnly === 'admin') {
-            for (var i in userList) {
-                html += '<a class="menu">' + userList[i].username + '</a>' + ', ';
-            }
+        var html = '',
+            readOnly;
+        userList.forEach(function(usr, i, userList) {
+            if (user.userID === usr.userID) readOnly = usr.readOnly;
+        });
+        if (readOnly === 'admin'){
+            userList.forEach(function(user, i, userList) {
+                html += '<a class="menu" id="'+ userList[i].userID +'">' + user.username + '</a>' + ', ';
+            });
             html = html.slice(0, html.length - 2);
             list.html(html);
-            $('.menu').click(function() { bootbox.dialog({
-                message: "Options",
-                title: "What do you want...",
-                onEscape: function() {},
-                show: true,
-                backdrop: true,
-                closeButton: true,
-                animate: true,
-                className: "my-modal",
-                buttons: {
-                    success: {
-                        label: "Set write option",
-                        className: "btn-success",
-                        callback: setRight
-                    },
-                    "Danger!": {
-                        label: "Set read-only",
-                        className: "btn-danger",
-                        callback: setRight
-                    },
-                    "Another label": {
-                        label: "Cancel",
-                        className: "btn-primary",
-                        callback: setRight
-                    }
-                }
-            }) } );
+            $('.menu').click(function() {
+                var clickedUserID = this.id;
+                bootbox.dialog({
+                    message: "Options",
+                    title: "What do you want...",
+                    onEscape: function() {},
+                    show: true,
+                    backdrop: true,
+                    closeButton: true,
+                    animate: true,
+                    className: "my-modal",
+                    buttons: {
+                        success: {
+                            label: "Set write option",
+                            className: "btn-success",
+                            callback: function() {
+                                setRight(clickedUserID, false)
+                            }
+                        },
+                        "Danger!": {
+                            label: "Set read-only",
+                            className: "btn-danger",
+                            callback: function() {
+                                setRight(clickedUserID, true)
+                            }
+                        }
+                    }})
+            } );
         } else {
-            for (i in userList) {
-                html += userList[i].username + ', ';
-            }
+            userList.forEach(function(user) {
+                html += user.username + ', ';
+            });
             html = html.slice(0, html.length - 2);
             list.text(html);
         }
-        //console.log('i\'ll show you users list', userList);
     }
 
     document.getElementById('lang').onchange = function() {
         var lang = $( "#lang option:selected").text();
         session.setMode("ace/mode/" + lang);
-        //console.log(lang);
         editor.focus();
         var count = session.getLength();
         editor.gotoLine(count, session.getLine(count-1).length);
     };
 
-    function setRight() {
-        user.readOnly = true;
-        editor.setReadOnly(false);
-        //socket.emit('change rights', );
-        return;
+    function setRight(userID, readOnly) {
+        console.log('set rights');
+        return socket.emit('change rights', userID, url, readOnly);
     }
 
 }());
