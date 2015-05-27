@@ -41,3 +41,11 @@ label:hover {
 
 }
 
+#logo {
+  font-family: 'Segoe ui semibold', 'Tahoma', 'Georgia';
+  font-style: normal;
+  text-align: center;
+  color: #00A7FF;
+  text-shadow: #9e9e9e 0.05em 0.05em 0.05em;
+}
+

@@ -53,6 +53,7 @@ $(function() {
                         user.userID = Math.random();
                         $.cookie('username', user.username);
                         $.cookie('userID', user.userID);
+                        $.cookie('userID', user.userID);
                         socket.emit('add user', user, function(userList){
                             initialization(userList);
                         });
@@ -83,7 +84,7 @@ $(function() {
             } else if (emit === 'disconnect') {
                 alert ('Вы были отключены администратором!')
             }
-            console.log(emit);
+            //console.log(emit);
         });
 
     function sendMessage() {
@@ -136,7 +137,7 @@ $(function() {
     }
 
     function showUsers(userList, readOnly){
-        console.log(userList, 'and', readOnly)
+        //console.log(userList, 'and', readOnly)
         var html = '';
         if (readOnly === 'admin'){
             userList.forEach(function(user, i, userList) {
@@ -197,7 +198,7 @@ $(function() {
     };
 
     function setRight(userID, emit) {
-        console.log('set rights');
+        //console.log('set rights');
         return socket.emit('change rights', userID, url, emit);
     }
 

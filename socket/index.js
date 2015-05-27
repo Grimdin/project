@@ -40,7 +40,7 @@ module.exports = function(server) {
                 this.room = user.room;
                 this.userID = user.userID;
                 this.username = checkUsername(user.username);
-                console.log('*** connected', socket.id);
+                //console.log('*** connected', socket.id);
                 /**
                  * если юзера нет в userList или его нет в подклчаемой комнате, то добавим его (url)
                  */
@@ -80,6 +80,7 @@ module.exports = function(server) {
                         cb(getUsersArray(userList, self.room, userList[self.userID][self.room].readOnly));
                     }
                 );
+                //console.log('table', userList);
             })
 
             .on('message', function(text, cb) {
@@ -103,10 +104,10 @@ module.exports = function(server) {
                         userList[self.userID][self.room].socketID.splice(i, 1);
                     }
                 });
-                console.log('*** disconnect', socket.id, 'and', userList[self.userID][self.room].socketID);
+                //console.log('*** disconnect', socket.id, 'and', userList[self.userID][self.room].socketID);
                 if ( this.room && !userList[this.userID][this.room].socketID.length ) {
                     delete userList[this.userID][this.room];
-                    console.log(userList[this.userID][this.room], 'and', this.room, 'and', userList);
+                    //console.log(userList[this.userID][this.room], 'and', this.room, 'and', userList);
                     socket.broadcast.to(this.room).emit('leave', this.username,
                         getUsersArray(userList, this.room));
                 }
