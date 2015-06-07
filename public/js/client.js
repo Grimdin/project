@@ -11,7 +11,7 @@ $(function() {
     editor.$blockScrolling = Infinity;
     session.setUseWrapMode(true);
     session.setUseWorker(false);
-
+    var select = $('#lang>.form-control');
     var FADE_TIME = 150; // ms
     var TYPING_TIMER_LENGTH = 400; // ms
     var form = $('#chat form')
@@ -20,7 +20,7 @@ $(function() {
         , list = $('#list')
         , user = {}
         , ignoreAceChange = true;
-    var url = window.location.href.split('/').pop();
+    var room = window.location.href.split('/').pop();
     var socket = io.connect();
     // Prompt for setting a username
     var typing = false;
@@ -43,8 +43,8 @@ $(function() {
 
         .on('connect', function() {
             printStatus("соединение установлено");
-            user = { username: $.cookie('username'), userID: $.cookie('userID'), room: url, readOnly: true };
-            if (!user.userID) {
+            user = { username: $.cookie('username'), userID: $.cookie('userID'), room: room, readOnly: true };
+            if (!$.cookie('userID')) {
                 bootbox.prompt({
                     title: "What is you\'re name?",
                     value: "Student",
@@ -53,15 +53,14 @@ $(function() {
                         user.userID = Math.random();
                         $.cookie('username', user.username);
                         $.cookie('userID', user.userID);
-                        $.cookie('userID', user.userID);
                         socket.emit('add user', user, function(userList){
-                            initialization(userList);
+                            connect(userList);
                         });
                     }
                 });
             } else {
                 socket.emit('add user', user, function(userList){
-                    initialization(userList);
+                    connect(userList);
                 });
             }
         })
@@ -76,16 +75,13 @@ $(function() {
             changeCode(code);
         })
 
-        .on('change rights', function(emit){
-            if (emit === true) {
-                editor.setReadOnly(emit);
-            } else if (emit === false) {
-                editor.setReadOnly(emit);
-            } else if (emit === 'disconnect') {
-                alert ('Вы были отключены администратором!')
-            }
-            //console.log(emit);
+        .on('change rights', function(rights){
+            changeRights(rights);
         });
+
+        //.on('change lang', function(rights){
+        //    setRights(rights);
+        //});
 
     function sendMessage() {
         var text = input.val();
@@ -102,10 +98,13 @@ $(function() {
         ul.prepend($('<li>').text(text));
     }
 
-    function initialization(userList) {
+    function connect(userList) {
         userList.forEach(function(oneUser) {
-            if (user.userID === oneUser.userID) user.readOnly = oneUser.readOnly;
+            if (user.userID == oneUser.userID) {
+                user.readOnly = oneUser.readOnly;
+            }
         });
+        //console.log('***second ***', userList, user.readOnly);
         // отображаем список участников
         showUsers(userList, user.readOnly);
         // выставляем права на редактирование кода
@@ -148,36 +147,34 @@ $(function() {
             $('.menu').click(function() {
                 var clickedUserID = this.id;
                 bootbox.dialog({
-                    message: "Options",
-                    title: "What do you want...",
-                    onEscape: function() {},
+                    title: "Изменение прав для участника",
+                    message: "Выберите действие",
                     show: true,
                     backdrop: true,
                     closeButton: true,
                     animate: true,
-                    className: "my-modal",
                     buttons: {
                         success: {
                             label: "Установить права на редактирование",
                             className: "btn-success",
                             callback: function() {
-                                setRight(clickedUserID, false)
+                                socket.emit('change rights', clickedUserID, room, false);
                             }
                         },
                         "Danger!": {
                             label: "Установить права только на чтение",
                             className: "btn-danger",
                             callback: function() {
-                                setRight(clickedUserID, true)
+                                socket.emit('change rights', clickedUserID, room, true);
                             }
-                        },
+                        }/*,
                         "Disconnect!": {
                             label: "Отключить участника",
                             className: "btn-danger",
                             callback: function() {
-                                setRight(clickedUserID, 'disconnect')
+                                socket.emit('change rights', clickedUserID, url, emit);
                             }
-                        }
+                        }*/
                     }})
             } );
         } else {
@@ -185,8 +182,22 @@ $(function() {
                 html += user.username + ', ';
             });
             html = html.slice(0, html.length - 2);
-            list.text(html);
+            list.html(html);
+            if (readOnly === true) select.attr('disabled', 'disabled');
         }
+        //console.log(readOnly);
+    }
+
+    function changeRights(readOnly) {
+        if (readOnly === true) {
+            printStatus("Ваши права изменены на \"Только чтение\"");
+            select.attr('disabled', 'disabled');
+        } else if (readOnly === false) {
+            printStatus("Ваши права изменены на \"Редактирование\"");
+            select.removeAttr('disabled');
+        }
+        editor.setReadOnly(readOnly);
+        user.readOnly = readOnly;
     }
 
     document.getElementById('lang').onchange = function() {
@@ -196,10 +207,5 @@ $(function() {
         var count = session.getLength();
         editor.gotoLine(count, session.getLine(count-1).length);
     };
-
-    function setRight(userID, emit) {
-        //console.log('set rights');
-        return socket.emit('change rights', userID, url, emit);
-    }
 
 }());

@@ -17,9 +17,7 @@ var collection = require('../lib/monk');
  * List of connected users
  * @type {{}}
  */
-var userList = {},
-    rooms = [],
-    usersID = [];
+var userList = {};
 
 module.exports = function(server) {
     var io = require('socket.io').listen(server);
@@ -40,19 +38,14 @@ module.exports = function(server) {
                 this.room = user.room;
                 this.userID = user.userID;
                 this.username = checkUsername(user.username);
-                //console.log('*** connected', socket.id);
                 /**
-                 * если юзера нет в userList или его нет в подклчаемой комнате, то добавим его (url)
+                 * если юзера нет в userList или его нет в подклчаемой комнате (url), то добавим его
                  */
                 if ( !(this.userID in userList) )
                     userList[this.userID] = {};
                 if ( !(this.room in userList[this.userID]) ){
-                    usersID.push(this.userID);
-                    rooms.push(this.room);
-                    userList[this.userID][this.room] = {username: this.username, readOnly: true, socketID : []};
-                    socket.broadcast.to(this.room).emit('join', this.username,
-                        getUsersArray(userList, this.room, userList[this.userID][this.room].readOnly)
-                    );
+                    userList[this.userID][this.room] = { username: this.username, readOnly: true, socketID : [] };
+                    socket.broadcast.to(this.room).emit( 'join', this.username, getUsersArray(this.room) );
                 }
                 async.waterfall([
                         function(callback) {
@@ -62,8 +55,8 @@ module.exports = function(server) {
                             if (!doc.userID) {
                                 userList[self.userID][self.room].readOnly = 'admin';
                                 collection.findAndModify({
-                                    query:{url: self.room},
-                                    update: {$set : {userID: self.userID}} },
+                                    query: {url: self.room},
+                                    update: { $set : {userID: self.userID}} },
                                     callback)
                             } else if (doc.userID === self.userID) {
                                 userList[self.userID][self.room].readOnly = 'admin';
@@ -77,10 +70,10 @@ module.exports = function(server) {
                         if (err) throw err;
                         userList[self.userID][self.room].socketID.push(self.id);
                         socket.emit('change code', result.code);
-                        cb(getUsersArray(userList, self.room, userList[self.userID][self.room].readOnly));
+                        //console.log(userList);
+                        cb(getUsersArray(self.room));
                     }
                 );
-                //console.log('table', userList);
             })
 
             .on('message', function(text, cb) {
@@ -99,17 +92,15 @@ module.exports = function(server) {
             .on('disconnect', function(username, cb) {
                 var self = this,
                     sID = this.id;
-                userList[this.userID][this.room].socketID.forEach(function(id, i) {
-                    if (id === sID) {
-                        userList[self.userID][self.room].socketID.splice(i, 1);
-                    }
+                userList[this.userID][this.room] && userList[this.userID][this.room].socketID.forEach(function(id, i) {
+                    if (id === sID) userList[self.userID][self.room].socketID.splice(i, 1);
                 });
                 //console.log('*** disconnect', socket.id, 'and', userList[self.userID][self.room].socketID);
                 if ( this.room && !userList[this.userID][this.room].socketID.length ) {
                     delete userList[this.userID][this.room];
                     //console.log(userList[this.userID][this.room], 'and', this.room, 'and', userList);
                     socket.broadcast.to(this.room).emit('leave', this.username,
-                        getUsersArray(userList, this.room));
+                        getUsersArray(this.room));
                 }
                 cb && cb();
             })
@@ -123,16 +114,29 @@ module.exports = function(server) {
                 });
             })
 
-            .on('change rights', function(userID, room, emit) {
+            .on('change rights', function(userID, room, readOnly) {
                 // отправить конкретным сокетам по socketID
-                var l = userList[userID][room].socketID.length,
-                    socketIDList = userList[userID][room].socketID;
-                for (var i = 0; i < l; i += 1){
-                    io.to(socketIDList[i]).emit('change rights', emit);
+                //сначала установить права "Только чтение" для всех
+                //затем установить права "Редактирование" для выбранного
+                for (var uID in userList) {
+                    if (userList[uID][room] && userList[uID][room].readOnly === false) {
+                        //console.log('first', userList[uID][room].readOnly);
+                        userList[uID][room].readOnly = true;
+                        userList[uID][room].socketID.forEach(function(socketID) {
+                            io.to(socketID).emit('change rights', true);
+                        });
+                    }
+                }
+                if (userList[userID][room] && userList[userID][room].readOnly !== 'admin') {
+                    //console.log('second', userList[userID][room].readOnly);
+                    userList[userID][room].readOnly = readOnly;
+                    userList[userID][room].socketID.forEach(function(socketID) {
+                        io.to(socketID).emit('change rights', readOnly);
+                    });
                 }
             });
-    });
     return io;
+    });
 };
 
 /**
@@ -140,22 +144,15 @@ module.exports = function(server) {
  * @param userList
  * @returns {Array}
  */
-function getUsersArray(userList, room) {
+function getUsersArray(room) {
     var usersInRoom = [];
     for (var item in userList) {
         if (userList[item][room])
-        //if (readOnly === 'admin') {
             usersInRoom.push({
                 "userID": item,
                 "username": userList[item][room].username,
                 "readOnly": userList[item][room].readOnly
             });
-        //}
-        //else if (userList[item][room]) {
-        //    usersInRoom.push({
-        //        "username": userList[item][room].username
-        //    });
-        //}
     }
     return usersInRoom;
 }
@@ -166,6 +163,5 @@ function getUsersArray(userList, room) {
  * @returns {*|string}
  */
 function checkUsername(username) {
-    username = username.replace(/,|\.|:|;|\[|]|\{|}/g, '') || 'Anonymous';
-    return username;
+    return username.replace(/,|\.|:|;|\[|]|\{|}/g, '') || 'Anonymous';
 }
